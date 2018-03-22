@@ -11,6 +11,7 @@ type key int
 const ( // emulating enums is actually pretty ugly in go.
 	clientKey key = iota
 	authenticationResponseKey
+	firstAuthenticatedRequestKey
 )
 
 // setClient associates a Client with a http.Request.
@@ -149,4 +150,26 @@ func MemberOf(r *http.Request) []string {
 	}
 
 	return nil
+}
+
+// markAsFirstAuthenticatedRequest is used to mark the request as the first authenticated request within a session
+func setFirstAuthenticatedRequest(r *http.Request, firstAuthenticatedRequest bool) {
+	ctx := context.WithValue(r.Context(), firstAuthenticatedRequestKey, firstAuthenticatedRequest)
+	r2 := r.WithContext(ctx)
+	*r = *r2
+}
+
+// getFirstAuthenticatedRequest returns true if the request was marked as first successful authenticated request
+// in this session.
+func getFirstAuthenticatedRequest(r *http.Request) bool {
+	if a := r.Context().Value(firstAuthenticatedRequestKey); a != nil {
+		return a.(bool)
+	} else {
+		return false
+	}
+}
+
+// IsFirstAuthenticatedRequest returns true, for the first successful authenticated request of a session
+func IsFirstAuthenticatedRequest(r *http.Request) bool {
+	return getFirstAuthenticatedRequest(r)
 }
