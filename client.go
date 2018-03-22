@@ -383,6 +383,7 @@ func (c *Client) getSession(w http.ResponseWriter, r *http.Request) {
 				glog.Infof("Validated ticket %s for %s", ticket, t.User)
 			}
 
+			setFirstAuthenticatedRequest(r, true)
 			setAuthenticationResponse(r, t)
 			return
 		} else {
