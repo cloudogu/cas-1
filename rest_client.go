@@ -28,7 +28,7 @@ type RestOptions struct {
 
 // RestClient uses the rest protocol provided by cas
 type RestClient struct {
-	casUrl      *url.URL
+	urlScheme   URLScheme
 	serviceURL  *url.URL
 	client      *http.Client
 	stValidator *ServiceTicketValidator
@@ -55,7 +55,7 @@ func NewRestClient(options *RestOptions) *RestClient {
 	}
 
 	return &RestClient{
-		casUrl:      options.CasURL,
+		urlScheme:   urlScheme,
 		serviceURL:  options.ServiceURL,
 		client:      client,
 		stValidator: NewServiceTicketValidator(client, urlScheme),
@@ -81,7 +81,7 @@ func (c *RestClient) RequestGrantingTicket(username string, password string) (Ti
 	// POST /cas/v1/tickets HTTP/1.0
 	// username=battags&password=password&additionalParam1=paramvalue
 
-	endpoint, err := c.casUrl.Parse(path.Join(c.casUrl.Path, "v1", "tickets"))
+	endpoint, err := c.urlScheme.RestGrantingTicket()
 	if err != nil {
 		return "", err
 	}
@@ -116,7 +116,7 @@ func (c *RestClient) RequestServiceTicket(tgt TicketGrantingTicket) (ServiceTick
 	// request:
 	// POST /cas/v1/tickets/{TGT id} HTTP/1.0
 	// service={form encoded parameter for the service url}
-	endpoint, err := c.casUrl.Parse(path.Join(c.casUrl.Path, "v1", "tickets", string(tgt)))
+	endpoint, err := c.urlScheme.RestServiceTicket(string(tgt))
 	if err != nil {
 		return "", err
 	}
@@ -155,7 +155,7 @@ func (c *RestClient) ValidateServiceTicket(st ServiceTicket) (*AuthenticationRes
 // Logout destroys the given granting ticket
 func (c *RestClient) Logout(tgt TicketGrantingTicket) error {
 	// DELETE /cas/v1/tickets/TGT-fdsjfsdfjkalfewrihfdhfaie HTTP/1.0
-	endpoint, err := c.casUrl.Parse(path.Join(c.casUrl.Path, "v1", "tickets", string(tgt)))
+	endpoint, err := c.urlScheme.RestLogout(string(tgt))
 	if err != nil {
 		return err
 	}
