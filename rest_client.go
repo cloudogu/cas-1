@@ -65,8 +65,8 @@ func NewRestClient(options *RestOptions) *RestClient {
 // Handle wraps a http.Handler to provide CAS Rest authentication for the handler.
 func (c *RestClient) Handle(h http.Handler) http.Handler {
 	return &restClientHandler{
-		restClient: c,
-		handler:    h,
+		c: c,
+		h:    h,
 	}
 }
 

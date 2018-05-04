@@ -10,21 +10,21 @@ import (
 
 // restClientHandler handles CAS REST Protocol over HTTP Basic Authentication
 type restClientHandler struct {
-	restClient *RestClient
-	handler    http.Handler
+	c       *RestClient
+	h       http.Handler
 }
 
 // ServeHTTP handles HTTP requests, processes HTTP Basic Authentication over CAS Rest api
 // and passes requests up to its child http.Handler.
-func (restClientHandler *restClientHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if glog.V(2) {
-		glog.Infof("cas: handling %v request for %v", request.Method, request.URL)
+		glog.Infof("cas: handling %v request for %v", r.Method, r.URL)
 	}
 
-	username, password, ok := request.BasicAuth()
+	username, password, ok := r.BasicAuth()
 	if !ok {
-		responseWriter.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-		responseWriter.WriteHeader(401)
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+		w.WriteHeader(401)
 		return
 	}
 
@@ -36,40 +36,40 @@ func (restClientHandler *restClientHandler) ServeHTTP(responseWriter http.Respon
 	authenticationResponse, keyWasFound := requestCache.Get(username)
 	if !keyWasFound {
 		glog.Infof("authenticationResponse was not already in cache; creating new one...")
-		newAuthenticationResponse, err := restClientHandler.authenticate(username, password)
+		newAuthenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
 			if glog.V(1) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}
-			responseWriter.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-			responseWriter.WriteHeader(401)
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+			w.WriteHeader(401)
 			return
 		}
 		glog.Infof("Adding new authenticationResponse to cache")
 		requestCache.Set(username, newAuthenticationResponse, cache.DefaultExpiration)
 		//TODO: Set firstAuthenticatedRequest
 		glog.Infof("Setting firstAuthenticatedRequest")
-		setFirstAuthenticatedRequest(request, true)
+		setFirstAuthenticatedRequest(r, true)
 	}
 	glog.Infof("Getting authenticationResponse from cache")
 	authenticationResponse, keyWasFound = requestCache.Get(username)
 	glog.Infof("Setting authenticationResponse to request")
-	setAuthenticationResponse(request, authenticationResponse.(*AuthenticationResponse))
+	setAuthenticationResponse(r, authenticationResponse.(*AuthenticationResponse))
 	glog.Infof("Serve request")
-	restClientHandler.handler.ServeHTTP(responseWriter, request)
+	ch.h.ServeHTTP(w, r)
 	return
 }
 
 func (ch *restClientHandler) authenticate(username string, password string) (*AuthenticationResponse, error) {
-	tgt, err := ch.restClient.RequestGrantingTicket(username, password)
+	tgt, err := ch.c.RequestGrantingTicket(username, password)
 	if err != nil {
 		return nil, err
 	}
 
-	st, err := ch.restClient.RequestServiceTicket(tgt)
+	st, err := ch.c.RequestServiceTicket(tgt)
 	if err != nil {
 		return nil, err
 	}
 
-	return ch.restClient.ValidateServiceTicket(st)
+	return ch.c.ValidateServiceTicket(st)
 }
