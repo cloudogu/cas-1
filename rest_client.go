@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"path"
 	"io/ioutil"
+	"github.com/patrickmn/go-cache"
+	"time"
 )
 
 // https://apereo.github.io/cas/4.2.x/protocol/REST-Protocol.html
@@ -66,7 +68,8 @@ func NewRestClient(options *RestOptions) *RestClient {
 func (c *RestClient) Handle(h http.Handler) http.Handler {
 	return &restClientHandler{
 		c: c,
-		h:    h,
+		h: h,
+		cache: cache.New(2*time.Minute, 5*time.Minute),
 	}
 }
 
