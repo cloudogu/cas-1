@@ -69,7 +69,7 @@ func (c *RestClient) Handle(h http.Handler) http.Handler {
 	return &restClientHandler{
 		c: c,
 		h: h,
-		cache: cache.New(2*time.Minute, 5*time.Minute),
+		cache: cache.New(10*time.Second, 1*time.Minute),
 	}
 }
 
