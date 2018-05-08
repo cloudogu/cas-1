@@ -42,7 +42,6 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(401)
 			return
 		}
-		glog.Infof("Adding new authenticationResponse to cache")
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
 		setFirstAuthenticatedRequest(r, true)
 	}
