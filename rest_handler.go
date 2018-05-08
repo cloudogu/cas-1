@@ -28,14 +28,11 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO we should implement a short cache to avoid hitting cas server on every request
-	// the cache could use the authorization header as key and the authenticationResponse as value
+	// cache to avoid hitting cas server on every request
+	// use the authorization header as key and the authenticationResponse as value
 	authorizationHeader := r.Header.Get("Authorization")
-	glog.Infof("Authorization header is %v", authorizationHeader)
-	glog.Infof("Checking if authenticationResponse for %v is already in cache", authorizationHeader)
 	authenticationResponse, keyWasFound := ch.cache.Get(authorizationHeader)
 	if !keyWasFound {
-		glog.Infof("authenticationResponse for %v was not already in cache; creating new one...", authorizationHeader)
 		newAuthenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
 			if glog.V(1) {
@@ -47,14 +44,11 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		glog.Infof("Adding new authenticationResponse to cache")
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
-		glog.Infof("Setting firstAuthenticatedRequest")
 		setFirstAuthenticatedRequest(r, true)
 	}
-	glog.Infof("Getting authenticationResponse from cache")
+
 	authenticationResponse, keyWasFound = ch.cache.Get(authorizationHeader)
-	glog.Infof("Setting authenticationResponse to request")
 	setAuthenticationResponse(r, authenticationResponse.(*AuthenticationResponse))
-	glog.Infof("Serve request")
 	ch.h.ServeHTTP(w, r)
 	return
 }
