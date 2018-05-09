@@ -33,7 +33,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	authorizationHeader := r.Header.Get("Authorization")
 	authenticationResponse, keyWasFound := ch.cache.Get(authorizationHeader)
 	if !keyWasFound {
-		newAuthenticationResponse, err := ch.authenticate(username, password)
+		authenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
 			if glog.V(1) {
 				glog.Infof("cas: rest authentication failed %v", err)
@@ -42,11 +42,10 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(401)
 			return
 		}
-		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
+		ch.cache.Set(authorizationHeader, authenticationResponse, cache.DefaultExpiration)
 		setFirstAuthenticatedRequest(r, true)
 	}
 
-	authenticationResponse, keyWasFound = ch.cache.Get(authorizationHeader)
 	setAuthenticationResponse(r, authenticationResponse.(*AuthenticationResponse))
 	ch.h.ServeHTTP(w, r)
 	return
