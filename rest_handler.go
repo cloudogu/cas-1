@@ -35,6 +35,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !keyWasFound {
 		authenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
+			// TODO: cache unauthenticated requests
 			if glog.V(1) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}

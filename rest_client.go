@@ -69,6 +69,7 @@ func (c *RestClient) Handle(h http.Handler) http.Handler {
 	return &restClientHandler{
 		c: c,
 		h: h,
+		// TODO: Make cache properties configurable
 		cache: cache.New(10*time.Second, 1*time.Minute),
 	}
 }
