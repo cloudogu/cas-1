@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"github.com/golang/glog"
+	"github.com/patrickmn/go-cache"
 )
 
 // restClientHandler handles CAS REST Protocol over HTTP Basic Authentication
 type restClientHandler struct {
 	c *RestClient
 	h http.Handler
+	cache *cache.Cache
 }
 
 // ServeHTTP handles HTTP requests, processes HTTP Basic Authentication over CAS Rest api
@@ -26,20 +28,26 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO we should implement a short cache to avoid hitting cas server on every request
-	// the cache could use the authorization header as key and the authenticationResponse as value
-
-	success, err := ch.authenticate(username, password)
-	if err != nil {
-		if glog.V(1) {
-			glog.Infof("cas: rest authentication failed %v", err)
+	// cache to avoid hitting cas server on every request
+	// use the authorization header as key and the authenticationResponse as value
+	authorizationHeader := r.Header.Get("Authorization")
+	authenticationResponse, keyWasFound := ch.cache.Get(authorizationHeader)
+	if !keyWasFound {
+		authenticationResponse, err := ch.authenticate(username, password)
+		if err != nil {
+			// TODO: cache unauthenticated requests
+			if glog.V(1) {
+				glog.Infof("cas: rest authentication failed %v", err)
+			}
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+			w.WriteHeader(401)
+			return
 		}
-		w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-		w.WriteHeader(401)
-		return
+		ch.cache.Set(authorizationHeader, authenticationResponse, cache.DefaultExpiration)
+		setFirstAuthenticatedRequest(r, true)
 	}
 
-	setAuthenticationResponse(r, success)
+	setAuthenticationResponse(r, authenticationResponse.(*AuthenticationResponse))
 	ch.h.ServeHTTP(w, r)
 	return
 }
