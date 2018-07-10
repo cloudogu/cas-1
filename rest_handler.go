@@ -12,6 +12,7 @@ type restClientHandler struct {
 	c *RestClient
 	h http.Handler
 	cache *cache.Cache
+	forwardUnauthenticatedRequests bool
 }
 
 // ServeHTTP handles HTTP requests, processes HTTP Basic Authentication over CAS Rest api
@@ -35,13 +36,22 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !keyWasFound {
 		newAuthenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
-			// TODO: cache unauthenticated requests
-			if glog.V(1) {
-				glog.Infof("cas: rest authentication failed %v", err)
+			if ch.forwardUnauthenticatedRequests {
+				if glog.V(1) {
+					glog.Infof("cas: rest authentication failed %v", err)
+					glog.Infof("unauthenticated request will be forwarded to application")
+					ch.h.ServeHTTP(w, r)
+					return
+				}
+			} else {
+				// TODO: cache unauthenticated requests
+				if glog.V(1) {
+					glog.Infof("cas: rest authentication failed %v", err)
+				}
+				w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+				w.WriteHeader(401)
+				return
 			}
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-			w.WriteHeader(401)
-			return
 		}
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
 		setFirstAuthenticatedRequest(r, true)
