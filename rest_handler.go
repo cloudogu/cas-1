@@ -36,22 +36,21 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !keyWasFound {
 		newAuthenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
+			if glog.V(1) {
+				glog.Infof("cas: rest authentication failed %v", err)
+			}
 			if ch.forwardUnauthenticatedRequests {
 				if glog.V(1) {
-					glog.Infof("cas: rest authentication failed %v", err)
 					glog.Infof("unauthenticated request will be forwarded to application")
-					ch.h.ServeHTTP(w, r)
-					return
 				}
+				// forward REST request for potential local user authentication
+				ch.h.ServeHTTP(w, r)
 			} else {
 				// TODO: cache unauthenticated requests
-				if glog.V(1) {
-					glog.Infof("cas: rest authentication failed %v", err)
-				}
 				w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
 				w.WriteHeader(401)
-				return
 			}
+			return
 		}
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
 		setFirstAuthenticatedRequest(r, true)
