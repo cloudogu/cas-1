@@ -65,13 +65,13 @@ func NewRestClient(options *RestOptions) *RestClient {
 }
 
 // Handle wraps a http.Handler to provide CAS Rest authentication for the handler.
-func (c *RestClient) Handle(h http.Handler, forwardUnauthenticatedRequests bool) http.Handler {
+func (c *RestClient) Handle(h http.Handler, forwardUnauthenticatedRESTRequests bool) http.Handler {
 	return &restClientHandler{
 		c: c,
 		h: h,
 		// TODO: Make cache properties configurable
-		cache: cache.New(10*time.Second, 1*time.Minute),
-		forwardUnauthenticatedRequests: forwardUnauthenticatedRequests,
+		cache:                              cache.New(10*time.Second, 1*time.Minute),
+		forwardUnauthenticatedRESTRequests: forwardUnauthenticatedRESTRequests,
 	}
 }
 
