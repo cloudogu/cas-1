@@ -39,6 +39,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if glog.V(1) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}
+			// TODO: Check which kind of error (timeout? 401? 50X?) occurred and act appropriately
 			if ch.forwardUnauthenticatedRESTRequests {
 				if glog.V(1) {
 					glog.Infof("unauthenticated request will be forwarded to application")
