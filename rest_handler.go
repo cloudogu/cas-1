@@ -9,10 +9,9 @@ import (
 
 // restClientHandler handles CAS REST Protocol over HTTP Basic Authentication
 type restClientHandler struct {
-	c                                  *RestClient
-	h                                  http.Handler
-	cache                              *cache.Cache
-	forwardUnauthenticatedRESTRequests bool
+	c     *RestClient
+	h     http.Handler
+	cache *cache.Cache
 }
 
 // ServeHTTP handles HTTP requests, processes HTTP Basic Authentication over CAS Rest api
@@ -40,7 +39,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}
 			// TODO: Check which kind of error (timeout? 401? 50X?) occurred and act appropriately
-			if ch.forwardUnauthenticatedRESTRequests {
+			if ch.c.forwardUnauthenticatedRESTRequests {
 				if glog.V(1) {
 					glog.Infof("unauthenticated request will be forwarded to application")
 				}

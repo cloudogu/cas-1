@@ -1,13 +1,13 @@
 package cas
 
 import (
-	"net/url"
-	"net/http"
-	"github.com/golang/glog"
 	"fmt"
-	"path"
-	"io/ioutil"
+	"github.com/golang/glog"
 	"github.com/patrickmn/go-cache"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
 	"time"
 )
 
@@ -19,21 +19,22 @@ type TicketGrantingTicket string
 // ServiceTicket stands for the access granted by the CAS server to an application for a specific user, also known as ST
 type ServiceTicket string
 
-
 // RestOptions provide options for the RestClient
 type RestOptions struct {
-	CasURL     *url.URL
-	ServiceURL *url.URL
-	Client     *http.Client
-	URLScheme  URLScheme
+	CasURL                             *url.URL
+	ServiceURL                         *url.URL
+	Client                             *http.Client
+	URLScheme                          URLScheme
+	ForwardUnauthenticatedRESTRequests bool
 }
 
 // RestClient uses the rest protocol provided by cas
 type RestClient struct {
-	urlScheme   URLScheme
-	serviceURL  *url.URL
-	client      *http.Client
-	stValidator *ServiceTicketValidator
+	urlScheme                          URLScheme
+	serviceURL                         *url.URL
+	client                             *http.Client
+	stValidator                        *ServiceTicketValidator
+	forwardUnauthenticatedRESTRequests bool
 }
 
 // NewRestClient creates a new client for the cas rest protocol with the provided options
@@ -57,27 +58,27 @@ func NewRestClient(options *RestOptions) *RestClient {
 	}
 
 	return &RestClient{
-		urlScheme:   urlScheme,
-		serviceURL:  options.ServiceURL,
-		client:      client,
-		stValidator: NewServiceTicketValidator(client, urlScheme),
+		urlScheme:                          urlScheme,
+		serviceURL:                         options.ServiceURL,
+		client:                             client,
+		stValidator:                        NewServiceTicketValidator(client, urlScheme),
+		forwardUnauthenticatedRESTRequests: options.ForwardUnauthenticatedRESTRequests,
 	}
 }
 
 // Handle wraps a http.Handler to provide CAS Rest authentication for the handler.
-func (c *RestClient) Handle(h http.Handler, forwardUnauthenticatedRESTRequests bool) http.Handler {
+func (c *RestClient) Handle(h http.Handler) http.Handler {
 	return &restClientHandler{
 		c: c,
 		h: h,
 		// TODO: Make cache properties configurable
-		cache:                              cache.New(10*time.Second, 1*time.Minute),
-		forwardUnauthenticatedRESTRequests: forwardUnauthenticatedRESTRequests,
+		cache: cache.New(10*time.Second, 1*time.Minute),
 	}
 }
 
 // HandleFunc wraps a function to provide CAS Rest authentication for the handler function.
 func (c *RestClient) HandleFunc(h func(http.ResponseWriter, *http.Request)) http.Handler {
-	return c.Handle(http.HandlerFunc(h), false)
+	return c.Handle(http.HandlerFunc(h))
 }
 
 // RequestGrantingTicket returns a new TGT, if the username and password authentication was successful
