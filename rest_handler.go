@@ -9,8 +9,8 @@ import (
 
 // restClientHandler handles CAS REST Protocol over HTTP Basic Authentication
 type restClientHandler struct {
-	c *RestClient
-	h http.Handler
+	c     *RestClient
+	h     http.Handler
 	cache *cache.Cache
 }
 
@@ -35,12 +35,21 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !keyWasFound {
 		newAuthenticationResponse, err := ch.authenticate(username, password)
 		if err != nil {
-			// TODO: cache unauthenticated requests
 			if glog.V(1) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-			w.WriteHeader(401)
+			// TODO: Check which kind of error (timeout? 401? 50X?) occurred and act appropriately
+			if ch.c.forwardUnauthenticatedRESTRequests {
+				if glog.V(1) {
+					glog.Infof("unauthenticated request will be forwarded to application")
+				}
+				// forward REST request for potential local user authentication
+				ch.h.ServeHTTP(w, r)
+			} else {
+				// TODO: cache unauthenticated requests
+				w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+				w.WriteHeader(401)
+			}
 			return
 		}
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)

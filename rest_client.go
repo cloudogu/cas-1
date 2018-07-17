@@ -1,13 +1,13 @@
 package cas
 
 import (
-	"net/url"
-	"net/http"
-	"github.com/golang/glog"
 	"fmt"
-	"path"
-	"io/ioutil"
+	"github.com/golang/glog"
 	"github.com/patrickmn/go-cache"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
 	"time"
 )
 
@@ -19,21 +19,22 @@ type TicketGrantingTicket string
 // ServiceTicket stands for the access granted by the CAS server to an application for a specific user, also known as ST
 type ServiceTicket string
 
-
 // RestOptions provide options for the RestClient
 type RestOptions struct {
-	CasURL     *url.URL
-	ServiceURL *url.URL
-	Client     *http.Client
-	URLScheme  URLScheme
+	CasURL                             *url.URL
+	ServiceURL                         *url.URL
+	Client                             *http.Client
+	URLScheme                          URLScheme
+	ForwardUnauthenticatedRESTRequests bool
 }
 
 // RestClient uses the rest protocol provided by cas
 type RestClient struct {
-	urlScheme   URLScheme
-	serviceURL  *url.URL
-	client      *http.Client
-	stValidator *ServiceTicketValidator
+	urlScheme                          URLScheme
+	serviceURL                         *url.URL
+	client                             *http.Client
+	stValidator                        *ServiceTicketValidator
+	forwardUnauthenticatedRESTRequests bool
 }
 
 // NewRestClient creates a new client for the cas rest protocol with the provided options
@@ -57,10 +58,11 @@ func NewRestClient(options *RestOptions) *RestClient {
 	}
 
 	return &RestClient{
-		urlScheme:   urlScheme,
-		serviceURL:  options.ServiceURL,
-		client:      client,
-		stValidator: NewServiceTicketValidator(client, urlScheme),
+		urlScheme:                          urlScheme,
+		serviceURL:                         options.ServiceURL,
+		client:                             client,
+		stValidator:                        NewServiceTicketValidator(client, urlScheme),
+		forwardUnauthenticatedRESTRequests: options.ForwardUnauthenticatedRESTRequests,
 	}
 }
 
