@@ -23,8 +23,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	username, password, ok := r.BasicAuth()
 	if !ok {
-		w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-		w.WriteHeader(401)
+		ch.handleUnauthenticatedRequest(w, r)
 		return
 	}
 
@@ -39,17 +38,8 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				glog.Infof("cas: rest authentication failed %v", err)
 			}
 			// TODO: Check which kind of error (timeout? 401? 50X?) occurred and act appropriately
-			if ch.c.ShallForwardUnauthenticatedRESTRequests() {
-				if glog.V(1) {
-					glog.Infof("unauthenticated request will be forwarded to application")
-				}
-				// forward REST request for potential local user authentication
-				ch.h.ServeHTTP(w, r)
-			} else {
-				// TODO: cache unauthenticated requests
-				w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
-				w.WriteHeader(401)
-			}
+			// TODO: cache unauthenticated requests
+			ch.handleUnauthenticatedRequest(w, r)
 			return
 		}
 		ch.cache.Set(authorizationHeader, newAuthenticationResponse, cache.DefaultExpiration)
@@ -60,6 +50,19 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	setAuthenticationResponse(r, authenticationResponse.(*AuthenticationResponse))
 	ch.h.ServeHTTP(w, r)
 	return
+}
+
+func (ch *restClientHandler) handleUnauthenticatedRequest(w http.ResponseWriter, r *http.Request) {
+	if ch.c.ShallForwardUnauthenticatedRESTRequests() {
+		if glog.V(1) {
+			glog.Infof("unauthenticated request will be forwarded to application")
+		}
+		// forward REST request for potential local user authentication or anonymous user
+		ch.h.ServeHTTP(w, r)
+	} else {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
+		w.WriteHeader(401)
+	}
 }
 
 func (ch *restClientHandler) authenticate(username string, password string) (*AuthenticationResponse, error) {
