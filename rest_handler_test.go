@@ -73,6 +73,27 @@ func TestServeHTTP(t *testing.T) {
 	assert.Equal(t, s.counter, 1)
 }
 
+func TestServeHTTPCaching(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/foo", nil)
+	req.SetBasicAuth("dirk", "gently")
+	m := new(MockedRestClient)
+	m.On("RequestGrantingTicket", "dirk", "gently").Return(TicketGrantingTicket("tgt"), nil)
+	m.On("RequestServiceTicket", mock.Anything).Return(ServiceTicket("st"), nil)
+	m.On("ValidateServiceTicket", mock.Anything).Return(&AuthenticationResponse{}, nil)
+	s := &serveCounter{0}
+	r := restClientHandler{c: m, h: s, cache: cache.New(time.Minute, time.Minute)}
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+	assert.Equal(t, s.counter, 1)
+
+	// this disables the authentication against cas so we can check if the cache is used
+	m.On("RequestGrantingTicket", "dirk", "gently").Return(nil, errors.New("failed"))
+
+	r.ServeHTTP(w, req)
+	assert.Equal(t, s.counter, 2)
+}
+
 func TestServeHTTPWithWrongCredentialsAndForward(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/foo", nil)
 	req.SetBasicAuth("dirk", "gently")
@@ -87,6 +108,28 @@ func TestServeHTTPWithWrongCredentialsAndForward(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, s.counter, 1)
+}
+
+func TestServeHTTPWithWrongCredentialsAndForwardCaching(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/foo", nil)
+	req.SetBasicAuth("dirk", "gently")
+	m := new(MockedRestClient)
+	m.On("RequestGrantingTicket", "dirk", "gently").Return(TicketGrantingTicket("tgt"),
+		errors.New("wrong creds"))
+	m.On("ShallForwardUnauthenticatedRESTRequests").Return(true)
+	s := &serveCounter{0}
+	r := restClientHandler{c: m, h: s, cache: cache.New(time.Minute, time.Minute)}
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+	assert.Equal(t, s.counter, 1)
+
+	m.On("RequestGrantingTicket", "dirk", "gently").Return(TicketGrantingTicket("tgt"),
+		nil)
+	r.ServeHTTP(w, req)
+	// without caching the request would now have an authentication response
+	assert.Nil(t, getAuthenticationResponse(req))
+	assert.Equal(t, s.counter, 2)
 }
 
 func TestServeHTTPWithWrongCredentialsAndWithoutForward(t *testing.T) {
