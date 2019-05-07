@@ -2,13 +2,14 @@ package cas
 
 import (
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/patrickmn/go-cache"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
+
+	"github.com/golang/glog"
+	"github.com/patrickmn/go-cache"
 )
 
 // https://apereo.github.io/cas/4.2.x/protocol/REST-Protocol.html
@@ -26,6 +27,16 @@ type RestOptions struct {
 	Client                             *http.Client
 	URLScheme                          URLScheme
 	ForwardUnauthenticatedRESTRequests bool
+}
+
+// RestAuthenticator handles the cas authentication via the rest protocol
+type RestAuthenticator interface {
+	Handle(h http.Handler) http.Handler
+	RequestGrantingTicket(username string, password string) (TicketGrantingTicket, error)
+	RequestServiceTicket(tgt TicketGrantingTicket) (ServiceTicket, error)
+	ValidateServiceTicket(st ServiceTicket) (*AuthenticationResponse, error)
+	Logout(tgt TicketGrantingTicket) error
+	ShallForwardUnauthenticatedRESTRequests() bool
 }
 
 // RestClient uses the rest protocol provided by cas
@@ -181,4 +192,9 @@ func (c *RestClient) Logout(tgt TicketGrantingTicket) error {
 	}
 
 	return nil
+}
+
+// ShallForwardUnauthenticatedRESTRequests specifies if unauthenticated requests shall be forwarded
+func (c *RestClient) ShallForwardUnauthenticatedRESTRequests() bool {
+	return c.forwardUnauthenticatedRESTRequests
 }
